@@ -1,0 +1,62 @@
+---
+title: "NCAA-Analysis"
+output: html_document
+date: "2022-10-28"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+#install.packages("lmerTest")
+library("lmerTest")
+
+```
+
+
+
+We import the filtered NCAA boxscore below
+```{r}
+
+box <- read.csv("/Users/chejeong/Desktop/FA2022/DA401/NBA-NCAA-analytics/Data/NCAA/ncaa_boxscore_filtered.csv")
+
+```
+
+
+We change the dependent variable as a factor
+```{r}
+
+box$win <- as.factor(box$win)
+
+```
+
+
+```{r}
+
+m <- glmer(win ~ three_points_att + three_points_made + two_points_att + free_throws_att + free_throws_made + offensive_rebounds + defensive_rebounds + assists + turnovers + steals + blocks + personal_fouls + fast_break_pts + second_chance_pts + points_off_turnovers + (1 | season),data=box, family = binomial,control = glmerControl(optimizer = "bobyqa"))
+
+```
+
+```{r}
+
+summary(m)
+
+```
+
+
+```{r}
+
+lm <- glm(win ~ three_points_att + three_points_made + two_points_att + free_throws_att + free_throws_made + rebounds + assists + turnovers + steals + blocks, data=box, family=binomial(link='logit'))
+
+
+
+```
+
+
+```{r}
+
+summary(lm)
+
+```
+
