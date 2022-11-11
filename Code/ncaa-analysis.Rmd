@@ -8,21 +8,36 @@ date: "2022-10-28"
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+
+
+We download and load necessary packages below
 ```{r}
 #install.packages("lmerTest")
+#install.packages("sjPlot")
+#install.packages("estimatr")
+#install.packages('car')
+#install.packages("corrplot")
+#install.packages("MASS")
+
 library("lmerTest")
+library("tidyr")
+library("psycho")
+library("sjPlot")
+library("estimatr")
+library("car")
+library("corrplot")
+library("MASS")
+library("dplyr")
 
 ```
-
 
 
 We import the filtered NCAA boxscore below
 ```{r}
 
-box <- read.csv("/Users/chejeong/Desktop/FA2022/DA401/NBA-NCAA-analytics/Data/NCAA/ncaa_boxscore_filtered.csv")
+box <- read.csv("/Users/chejeong/Desktop/FA2022/DA401/NBA-NCAA-analytics/Data/NCAA/ncaa_boxscore_filtered2.csv")
 
 ```
-
 
 We change the dependent variable as a factor
 ```{r}
@@ -31,6 +46,116 @@ box$win <- as.factor(box$win)
 
 ```
 
+We select relevant variables
+```{r}
+
+box <- box %>% dplyr::select(win,season,three_points_att,three_points_made,
+                    two_points_att,two_points_made,free_throws_att,
+                    free_throws_made,offensive_rebounds, 
+                    defensive_rebounds, assists, 
+                    turnovers, steals, blocks, personal_fouls, 
+                    fast_break_pts, second_chance_pts, points_off_turnovers)
+
+```
+
+
+We filter out null values
+```{r}
+
+print(dim(box))
+print(colSums(is.na(box)))
+
+box <- box %>% drop_na()
+
+#export
+#write.csv(box,"/Users/chejeong/Desktop/FA2022/DA401/NBA-NCAA-analytics/Data/NCAA/ncaa_boxscore_filtered3.csv", row.names = FALSE)
+
+```
+
+
+### Mixed Effects Logistic Regression Assumption Test
+
+We test the mixed effects logistic regression assumptions below:
+
+Linearity: relationship between the natural log of these probabilities (when expressed as odds) and your predictor variable is linear.
+
+No outliers: independent variables should not contain outliers
+
+Multicollinearity: independent variables should not be substantially correlated to each other.
+
+*Linearity*
+
+We test the lineartiy of the data.
+
+
+*Outliers*
+
+We explore if there are any outliers in the independent variables of interest below.
+                  
+"three_points_made"    "three_points_att"    
+[17] "three_points_pct"     "two_points_made"      "two_points_att"       "two_points_pct"      
+[21] "free_throws_made"     "free_throws_att"      "free_throws_pct"      "offensive_rebounds"  
+[25] "defensive_rebounds"   "rebounds"             "assists"              "turnovers"           
+[29] "steals"               "blocks"               "personal_fouls"       "foulouts"            
+[33] "points"               "fast_break_pts"       "second_chance_pts"    "points_off_turnovers"
+
+```{r}
+
+boxplot(box$three_points_made,ylab = "3PM")
+boxplot(box$three_points_att,ylab = "3PA")
+boxplot(box$two_points_made,ylab = "2PM")
+boxplot(box$two_points_att,ylab = "2PA")
+boxplot(box$free_throws_made,ylab = "FTM")
+boxplot(box$free_throws_att,ylab = "FTA")
+boxplot(box$offensive_rebounds,ylab = "OFR")
+boxplot(box$defensive_rebounds,ylab = "DFR")
+boxplot(box$assists,ylab = "AST")
+boxplot(box$turnovers,ylab = "TO")
+boxplot(box$steals,ylab = "STL")
+boxplot(box$blocks,ylab = "BLK")
+boxplot(box$fast_break_pts,ylab = "Fastbreak PTS")
+boxplot(box$second_chance_pts,ylab = "Second Chance PTS")
+boxplot(box$points_off_turnovers,ylab = "PTS off TO")
+
+```
+
+*Multicollinearity*
+
+We test multicollinearity with the code below
+
+```{r}
+
+#fit linear model below
+lm <- glm(win ~ three_points_att + three_points_made + two_points_att + two_points_made + free_throws_att + free_throws_made + offensive_rebounds + defensive_rebounds + assists + turnovers + steals + blocks + personal_fouls + fast_break_pts + second_chance_pts + points_off_turnovers,data=box, family = "binomial")
+
+```
+
+We test for multicollinearity using vif below.
+
+```{r}
+
+vif(lm)
+
+```
+
+
+```{r}
+
+data_x <- box2 %>% dplyr::select(three_points_att, three_points_made, two_points_att,
+                    two_points_made,free_throws_att,free_throws_made,
+                    offensive_rebounds, defensive_rebounds, assists, 
+                    turnovers, steals, blocks, personal_fouls, 
+                    fast_break_pts, second_chance_pts, points_off_turnovers)
+
+
+corrplot(cor(data_x), method = 'shade',is.corr=F, number.cex=0.3, addCoef.col="black")
+
+```
+
+
+### Model Fitting
+
+We fit the Mixed Effects Logistic Regression below
 
 ```{r}
 
@@ -44,19 +169,31 @@ summary(m)
 
 ```
 
+```{r}
+tab_model(m)
+```
+
+### Player Boxscore
 
 ```{r}
 
-lm <- glm(win ~ three_points_att + three_points_made + two_points_att + free_throws_att + free_throws_made + rebounds + assists + turnovers + steals + blocks, data=box, family=binomial(link='logit'))
+player <- read.csv("/Users/chejeong/Desktop/player_boxscore.csv")
+
+```
+
+We clean the data for the player boxscore data below.
+
+```{r}
 
 
 
 ```
 
 
-```{r}
 
-summary(lm)
 
-```
+
+
+
+
 
