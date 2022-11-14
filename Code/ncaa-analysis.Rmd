@@ -18,6 +18,7 @@ We download and load necessary packages below
 #install.packages('car')
 #install.packages("corrplot")
 #install.packages("MASS")
+#install.packages("margins")
 
 library("lmerTest")
 library("tidyr")
@@ -28,6 +29,8 @@ library("car")
 library("corrplot")
 library("MASS")
 library("dplyr")
+library("ggplot2")
+library("margins")
 
 ```
 
@@ -35,7 +38,7 @@ library("dplyr")
 We import the filtered NCAA boxscore below
 ```{r}
 
-box <- read.csv("/Users/chejeong/Desktop/FA2022/DA401/NBA-NCAA-analytics/Data/NCAA/ncaa_boxscore_filtered2.csv")
+box <- read.csv("/Users/chejeong/Desktop/ncaa_boxscore_filtered2.csv")
 
 ```
 
@@ -51,7 +54,7 @@ We select relevant variables
 
 box <- box %>% dplyr::select(win,season,three_points_att,three_points_made,
                     two_points_att,two_points_made,free_throws_att,
-                    free_throws_made,offensive_rebounds, 
+                    free_throws_made,free_throws_att, offensive_rebounds, 
                     defensive_rebounds, assists, 
                     turnovers, steals, blocks, personal_fouls, 
                     fast_break_pts, second_chance_pts, points_off_turnovers)
@@ -119,6 +122,16 @@ boxplot(box$points_off_turnovers,ylab = "PTS off TO")
 
 ```
 
+We filter the outliers below.
+
+```{r}
+
+box <- box %>% dplyr::filter(points_off_turnovers <= 60 & second_chance_pts < 150)
+
+```
+
+
+
 *Multicollinearity*
 
 We test multicollinearity with the code below
@@ -141,16 +154,45 @@ vif(lm)
 
 ```{r}
 
-data_x <- box2 %>% dplyr::select(three_points_att, three_points_made, two_points_att,
+data_x <- box %>% dplyr::select(three_points_att, three_points_made, two_points_att,
                     two_points_made,free_throws_att,free_throws_made,
                     offensive_rebounds, defensive_rebounds, assists, 
                     turnovers, steals, blocks, personal_fouls, 
                     fast_break_pts, second_chance_pts, points_off_turnovers)
 
-
-corrplot(cor(data_x), method = 'shade',is.corr=F, number.cex=0.3, addCoef.col="black")
+corrplot(cor(data_x), method = 'shade',is.corr=F, number.cex=0.4, addCoef.col="black")
 
 ```
+
+
+```{r}
+
+# Load the data
+# Fit the logistic regression model
+model <- glm(win ~ three_points_att + three_points_made + two_points_att + free_throws_made + offensive_rebounds + defensive_rebounds + assists + turnovers + steals + blocks + personal_fouls + fast_break_pts + second_chance_pts + points_off_turnovers,data=box, family = "binomial")
+# Predict the probability (p)
+
+probabilities <- predict(model, type = "response")
+predicted.classes <- ifelse(probabilities > 0.5, "pos", "neg")
+
+
+# Select only numeric predictors
+mydata2 <- box %>%
+  dplyr::select_if(is.numeric) 
+predictors <- colnames(mydata2)
+# Bind the logit and tidying the data for plot
+mydata2 <- mydata2 %>%
+  mutate(logit = log(probabilities/(1-probabilities))) %>%
+  gather(key = "predictors", value = "predictor.value", -logit)
+
+ggplot(mydata2, aes(logit, predictor.value))+
+  geom_point(size = 0.5, alpha = 0.5) +
+  geom_smooth(method = "loess") + 
+  theme_bw() + 
+  facet_wrap(~predictors, scales = "free_y")
+
+```
+
 
 
 ### Model Fitting
@@ -159,7 +201,7 @@ We fit the Mixed Effects Logistic Regression below
 
 ```{r}
 
-m <- glmer(win ~ three_points_att + three_points_made + two_points_att + free_throws_att + free_throws_made + offensive_rebounds + defensive_rebounds + assists + turnovers + steals + blocks + personal_fouls + fast_break_pts + second_chance_pts + points_off_turnovers + (1 | season),data=box, family = binomial,control = glmerControl(optimizer = "bobyqa"))
+m <- glmer(win ~ three_points_att + three_points_made + two_points_att + free_throws_made + offensive_rebounds + defensive_rebounds + assists + turnovers + steals + blocks + personal_fouls + fast_break_pts + second_chance_pts + points_off_turnovers + (1 | season),data=box, family = binomial,control = glmerControl(optimizer = "bobyqa"))
 
 ```
 
@@ -168,6 +210,60 @@ m <- glmer(win ~ three_points_att + three_points_made + two_points_att + free_th
 summary(m)
 
 ```
+
+
+```{r}
+
+m2 <- glmer(win ~ three_points_att + three_points_made + two_points_att + free_throws_made + offensive_rebounds + defensive_rebounds + assists + turnovers + steals + blocks + personal_fouls + fast_break_pts + second_chance_pts + points_off_turnovers + (1 | season),data=box, family = binomial,control=glmerControl(optimizer="bobyqa",optCtrl=list(maxfun=2e5)))
+
+```
+
+We calculate the Average Marginal Effect (AME) below.
+```{r}
+
+modelMargins <- margins(m)
+
+```
+
+show the results of AME
+```{r}
+summary(modelMargins)
+```
+We calculate the Marginal Effects at Means (MEM) below.
+
+```{r}
+
+estimates <- as.numeric(summary(m)$coefficients[,1])
+
+```
+
+```{r}
+
+meanDf <- box %>% dplyr::select(three_points_att,three_points_made,two_points_att,
+                         free_throws_made,offensive_rebounds,defensive_rebounds,
+                         assists,turnovers,steals,blocks,personal_fouls,fast_break_pts,
+                         second_chance_pts,points_off_turnovers) %>%  summarize_if(is.numeric, mean)
+meanDf <- as.numeric(meanDf)
+meanDf <- c(1,meanDf) #add 1 or intercept later for dot product
+meanDf
+
+```
+
+We calculate the dot product to find the MEM below
+```{r}
+
+estimates %*% meanDf
+
+```
+
+We calculate the probability based off MEM calculation below
+```{r}
+
+1/(1+exp(-1*(estimates %*% meanDf)))
+
+```
+
+
 
 ```{r}
 tab_model(m)
@@ -185,12 +281,37 @@ We clean the data for the player boxscore data below.
 
 ```{r}
 
+colnames(player)
 
+```
+
+Filtering criteria:
+
+1. Player must play in the game
+2. 
+
+
+```{r}
+
+player <- player %>% dplyr::select(season, player_id, height, played, starter, minutes_int64, position,
+                         three_points_made, three_points_att, three_points_pct, two_points_made,
+                         two_points_att, two_points_pct, free_throws_made, free_throws_att,
+                         free_throws_pct, offensive_rebounds, defensive_rebounds, rebounds, assists,
+                         turnovers, steals, blocks, personal_fouls, points) %>% filter(played == "true")
 
 ```
 
 
+```{r}
 
+print(dim(player))
+print(colSums(is.na(player)))
+
+temp <- player %>% drop_na()
+
+print(dim(temp))
+
+```
 
 
 
