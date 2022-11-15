@@ -19,6 +19,13 @@ We download and load necessary packages below
 #install.packages("corrplot")
 #install.packages("MASS")
 #install.packages("margins")
+#install.packages("caret")
+#install.packages("InformationValue")
+#install.packages("ISLR")
+#install.packages("WeMix")
+#install.packages("Kendall")
+#install.packages("tsbox")
+
 
 library("lmerTest")
 library("tidyr")
@@ -31,6 +38,13 @@ library("MASS")
 library("dplyr")
 library("ggplot2")
 library("margins")
+library("caret") #confusion matrix
+library("InformationValue") #confusion matrix
+library("ISLR") #confusion matrix
+library("WeMix") #Wald Test
+library("Kendall") #Season Mann-Kendall test
+library("xts") #convert to time series object
+library("tsbox") #convert xts to ts
 
 ```
 
@@ -207,16 +221,17 @@ m <- glmer(win ~ three_points_att + three_points_made + two_points_att + free_th
 
 ```{r}
 
+#gives same result without optimizer
+mtest <- glmer(win ~ three_points_att + three_points_made + two_points_att + free_throws_made + offensive_rebounds + defensive_rebounds + assists + turnovers + steals + blocks + personal_fouls + fast_break_pts + second_chance_pts + points_off_turnovers + (1 | season),data=box, family = binomial)
+
+```
+
+```{r}
+
 summary(m)
 
 ```
 
-
-```{r}
-
-m2 <- glmer(win ~ three_points_att + three_points_made + two_points_att + free_throws_made + offensive_rebounds + defensive_rebounds + assists + turnovers + steals + blocks + personal_fouls + fast_break_pts + second_chance_pts + points_off_turnovers + (1 | season),data=box, family = binomial,control=glmerControl(optimizer="bobyqa",optCtrl=list(maxfun=2e5)))
-
-```
 
 We calculate the Average Marginal Effect (AME) below.
 ```{r}
@@ -227,7 +242,8 @@ modelMargins <- margins(m)
 
 show the results of AME
 ```{r}
-summary(modelMargins)
+AMETable <- summary(modelMargins)
+AMETable
 ```
 We calculate the Marginal Effects at Means (MEM) below.
 
@@ -249,7 +265,7 @@ meanDf
 
 ```
 
-We calculate the dot product to find the MEM below
+We calculate the dot product to find the Y hat value below
 ```{r}
 
 estimates %*% meanDf
@@ -259,10 +275,68 @@ estimates %*% meanDf
 We calculate the probability based off MEM calculation below
 ```{r}
 
-1/(1+exp(-1*(estimates %*% meanDf)))
+MEMProb <- 1/(1+exp(-1*(estimates %*% meanDf)))
+MEMProb
+
+```
+We calculate the MEM value below
+
+```{r}
+
+-0.356332*MEMProb*(1-MEMProb) #three point attempts
+0.397776*MEMProb*(1-MEMProb) #three point made
 
 ```
 
+
+### Model Evaluation
+
+We perform the Wald Test to observe significance of the model.
+
+```{r}
+
+m2 <- update(mtest, ~.-three_points_att)
+anova(m,m2)
+
+m3 <- update(m2, ~.-three_points_made)
+anova(m,m3)
+
+```
+
+
+
+```{r}
+
+#split dataset into training and testing set
+set.seed(1)
+sample <- sample(c(TRUE, FALSE), nrow(box), replace=TRUE, prob=c(0.7,0.3))
+train <- box[sample, ]
+test <- box[!sample, ]
+
+mt <- glmer(win ~ three_points_att + three_points_made + two_points_att + free_throws_made + offensive_rebounds + defensive_rebounds + assists + turnovers + steals + blocks + personal_fouls + fast_break_pts + second_chance_pts + points_off_turnovers + (1 | season),data=train, family = binomial,control = glmerControl(optimizer = "bobyqa"))
+
+#use model to predict probability of default
+predicted <- predict(mt, test, type="response")
+
+#convert defaults from "Yes" and "No" to 1's and 0's
+test$default <- ifelse(test$win==1, 1, 0)
+
+#find optimal cutoff probability to use to maximize accuracy
+optimal <- optimalCutoff(test$default, predicted)[1]
+
+#create confusion matrix
+confusionMatrix(test$default, predicted)
+
+#calculate sensitivity
+cat("sensitivity: ",sensitivity(test$default, predicted), "\n")
+
+#calculate specificity
+cat("specificity: ",specificity(test$default, predicted), "\n")
+
+#calculate total misclassification error rate
+misClassError(test$default, predicted, threshold=optimal)
+
+```
 
 
 ```{r}
@@ -279,17 +353,10 @@ player <- read.csv("/Users/chejeong/Desktop/player_boxscore.csv")
 
 We clean the data for the player boxscore data below.
 
-```{r}
-
-colnames(player)
-
-```
 
 Filtering criteria:
 
 1. Player must play in the game
-2. 
-
 
 ```{r}
 
@@ -297,7 +364,7 @@ player <- player %>% dplyr::select(season, player_id, height, played, starter, m
                          three_points_made, three_points_att, three_points_pct, two_points_made,
                          two_points_att, two_points_pct, free_throws_made, free_throws_att,
                          free_throws_pct, offensive_rebounds, defensive_rebounds, rebounds, assists,
-                         turnovers, steals, blocks, personal_fouls, points) %>% filter(played == "true")
+                         turnovers, steals, blocks, personal_fouls, points, minutes_int64, weight) %>% filter(played == "true")
 
 ```
 
@@ -307,9 +374,102 @@ player <- player %>% dplyr::select(season, player_id, height, played, starter, m
 print(dim(player))
 print(colSums(is.na(player)))
 
-temp <- player %>% drop_na()
+player <- player %>% drop_na()
 
-print(dim(temp))
+print(dim(player))
+
+```
+
+We generate dummy variables for the position below
+```{r}
+
+player$guard <- ifelse(grepl('G',temp$position,fixed=TRUE), 1, 0)
+player$forward <- ifelse(grepl('F',temp$position,fixed=TRUE), 1, 0)
+
+```
+
+convert dummy variables as factor
+```{r}
+player$guard <- as.factor(player$guard)
+player$forward <- as.factor(player$forward)
+
+```
+
+
+```{r}
+player2 <- player
+
+player2 <- player2 %>% dplyr::filter(starter == "true")
+
+```
+
+
+We construct the linear regression mixed effect model below.
+
+```{r}
+
+mp <- lmer(three_points_pct ~ two_points_att + two_points_made + free_throws_made + free_throws_att + offensive_rebounds + defensive_rebounds + assists + turnovers + steals + blocks + guard + forward + height + weight + minutes_int64 + (1 | season),data=player)
+
+```
+
+```{r}
+
+summary(mp)
+
+```
+
+```{r}
+
+mp2 <- lmer(three_points_att ~ two_points_att + two_points_made + free_throws_made + free_throws_att + offensive_rebounds + defensive_rebounds + assists + turnovers + steals + blocks + guard + forward + height + weight + minutes_int64 + (1 | season),data=player2)
+
+```
+
+```{r}
+
+summary(mp2)
+
+```
+
+
+```{r}
+tab_model(mp,mp2)
+```
+
+
+```{r}
+colnames(player)
+```
+
+
+```{r}
+
+distance <- read.csv("/Users/chejeong/Desktop/threepointshotdistance.csv")
+
+```
+
+
+```{r}
+
+p <- ggplot(distance, aes(x=date, y=distanceToBasket, group=1)) + geom_line()
+p + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) + ylab("Distance To Basket (Inches)") + ggtitle("Average Three Point Shot Distance 2013 - 2018")
+
+ggsave("/Users/chejeong/Desktop/distanceplot.png")
+
+```
+
+
+We conduct the Seasonal Mann-Kendall test below.
+
+```{r}
+
+distance$date <- paste(distance$date,"-01",sep="")
+distance$date <- as.Date(distance$date)
+
+distance2 <- xts(x=distance$distanceToBasket, order.by = distance$date)
+
+distance2 <- ts_ts(distance)
+
+SeasonalMannKendall(distance2)
 
 ```
 
