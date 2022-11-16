@@ -45,6 +45,7 @@ library("WeMix") #Wald Test
 library("Kendall") #Season Mann-Kendall test
 library("xts") #convert to time series object
 library("tsbox") #convert xts to ts
+library(pROC)
 
 ```
 
@@ -318,23 +319,23 @@ mt <- glmer(win ~ three_points_att + three_points_made + two_points_att + free_t
 #use model to predict probability of default
 predicted <- predict(mt, test, type="response")
 
-#convert defaults from "Yes" and "No" to 1's and 0's
-test$default <- ifelse(test$win==1, 1, 0)
+
+test$win <- ifelse(test$win==1, 1, 0)
 
 #find optimal cutoff probability to use to maximize accuracy
-optimal <- optimalCutoff(test$default, predicted)[1]
+optimal <- optimalCutoff(test$win, predicted)[1]
 
 #create confusion matrix
-confusionMatrix(test$default, predicted)
+confusionMatrix(test$win, predicted)
 
 #calculate sensitivity
-cat("sensitivity: ",sensitivity(test$default, predicted), "\n")
+cat("sensitivity: ",sensitivity(test$win, predicted), "\n")
 
 #calculate specificity
-cat("specificity: ",specificity(test$default, predicted), "\n")
+cat("specificity: ",specificity(test$win, predicted), "\n")
 
 #calculate total misclassification error rate
-misClassError(test$default, predicted, threshold=optimal)
+misClassError(test$win, predicted, threshold=optimal)
 
 ```
 
@@ -475,6 +476,32 @@ SeasonalMannKendall(distance2)
 
 
 
+
+```{r}
+
+plot(fitted(m), residuals(m), xlab = "Fitted Values", ylab = "Residuals")
+abline(h = 0, lty = 2)
+lines(smooth.spline(fitted(m), residuals(m)))
+
+```
+
+
+```{r}
+
+ggplot(data.frame(eta=predict(m,type="link"),pearson=residuals(m,type="pearson")),
+      aes(x=eta,y=pearson)) +
+    geom_point() +
+    theme_bw()
+
+```
+
+```{r}
+
+roc(test$win,predicted,pot=TRUE)
+par(pty = "s")
+plot(roc(test$win,predicted,pot=TRUE, print.auc = TRUE))
+
+```
 
 
 
