@@ -133,7 +133,9 @@ boxplot(box$steals,ylab = "STL")
 boxplot(box$blocks,ylab = "BLK")
 boxplot(box$fast_break_pts,ylab = "Fastbreak PTS")
 boxplot(box$second_chance_pts,ylab = "Second Chance PTS")
+abline(h=150, lty=2)
 boxplot(box$points_off_turnovers,ylab = "PTS off TO")
+abline(h=60, lty=2)
 
 ```
 
@@ -142,6 +144,25 @@ We filter the outliers below.
 ```{r}
 
 box <- box %>% dplyr::filter(points_off_turnovers <= 60 & second_chance_pts < 150)
+
+```
+
+
+*Boxplot of Mean 3PT stats through years*
+
+```{r}
+
+#boxplot of three point attempts throughout seasons
+boxplot(box$three_points_att~box$season,main="Three Point Attempts 2013-2017",ylab = "Three Point Attempts", xlab="Season")
+
+#generate three point percentage
+box$three_points_percentage <- (box$three_points_made/box$three_points_att)
+
+#boxplot of three point percentage throughout seasons
+boxplot(box$three_points_percentage~box$season,main="Three Point Percentage 2013-2017",ylab = "Three Point Percentage", xlab="Season")
+
+#boxplot of three point percentage throughout seasons
+boxplot(box$three_points_made~box$season,main="Three Point Made Shots 2013-2017",ylab = "Three Point Made Shots", xlab="Season")
 
 ```
 
@@ -207,7 +228,6 @@ ggplot(mydata2, aes(logit, predictor.value))+
   facet_wrap(~predictors, scales = "free_y")
 
 ```
-
 
 
 ### Model Fitting
@@ -339,10 +359,6 @@ misClassError(test$win, predicted, threshold=optimal)
 
 ```
 
-
-```{r}
-tab_model(m)
-```
 
 ### Player Boxscore
 
