@@ -7,7 +7,7 @@
 
 # Introduction
 
-This project explores the three point strategy in the NCAA. In recent years, numerous NBA teams have utilized found success by utilizing the three point shot. Given this phenomenon, this project investigates if the same trend is reflected in the NCAA Division 1 league.
+This project explores the three point strategy in the NCAA. In recent years, numerous NBA teams have found success by utilizing the three point shot. Given this phenomenon, this project investigates if the same trend is reflected in the NCAA Division 1 league. A Logistic Mixed Effects Regression model was created to examine the impact of box score statistics in win probability. Seasonal Mann Kendall test was used to determine whether college basketball players are attempting three point shots at greater distances throughout the years.
 
 
 
