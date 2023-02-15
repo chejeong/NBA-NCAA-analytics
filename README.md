@@ -10,6 +10,62 @@
 This project explores the three point strategy in the NCAA. In recent years, numerous NBA teams have found success by utilizing the three point shot. Given this phenomenon, this project investigates if the same trend is reflected in the NCAA Division 1 league. A Logistic Mixed Effects Regression model was created to examine the impact of box score statistics in win probability. Seasonal Mann Kendall test was used to determine whether college basketball players are attempting three point shots at greater distances throughout the years.
 
 
+# Brief Overview
+
+**Refer to** `Che Research Paper.pdf` file **for full research paper.**
+
+**EDA: Shot Chart Visualization**
+
+<img src="README_Images/shot_chart.png" width = 600>
+
+</br>
+
+Duke University is one of the powerhouse basketball programs in the NCAA, with a total of 11 national championship appearances. 
+
+We observe:
+- Greater 3PA further behind the three point arc during the 2017 season than the 2013 season
+- Greater volume of three point shots taken during the 2017 season
+- Greater shot attempts near the basket and behind the three point line, compared to mid-range shots
+
+The University of North Carolina (UNC), who were the 2017 NCAA Division 1 champions, display similar patterns.
+
+We observe: 
+- Higher volume of three point shots in 2017 than 2013. 
+- More three pointers are shot further behind the arc in 2017 than in 2013.
+
+</br>
+
+**Model Results**
+
+</br>
+
+Average Marginal Effects (AME) Chart.
+
+<img src="README_Images/AME.png" width = 600>
+
+The AME value of three point attempts is -0.0322. In other words, on average, an increase in one three point shot attempt decreases the probability of winning by 3.22%, holding other variables constant. Moreover, the AME value of three points made is 0.036. Thus, on average, an increase in one made three point shot increases the probability of winning by 3.6%, holding other variables constant.
+
+</br>
+
+**Confusion Matrix**
+
+</br>
+
+<img src="README_Images/Confusion_Matrix.png" width = 600>
+
+- Accuracy: 0.8678
+- Specificity: 0.7736
+- Sensitivity: 0.9126 
+
+</br>
+
+**ROC Curve**
+
+<img src="README_Images/ROC_Curve.png" width = 600>
+
+</br>
+
+The AUC value of the model is 0.9386, which indicates that the model performs much better than random chance. Thus, the model is capable of classifying wins and losses very accurately.
 
 # Data
 
